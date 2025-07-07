@@ -199,23 +199,18 @@ aphot() {
 }
 
 merge_subsolar() {
-    echo "\n==== 合并所有轨次lc csv并统一绘图 ===="
-    python "${code_path}/merge_allsub.py" "$config_file" "$update_list" "$proc_path" "$code_path"
-    # 以指定日期为基准，计算相对星等
-    rel_base_date="2024-11-19"
-    python "${code_path}/mag_rel_by_date.py" res/all_orbit_lc.csv "$rel_base_date"
-    # 绘制相对星等曲线
-    rel_csv="res/all_orbit_lc_rel.csv"
-    python "${code_path}/plot_lc_allsub.py" "$rel_csv" "$target_nm"
-    # 绘制两颗标准星的相对星等曲线
-    rel_csv="res/all_orbit_lc_rel2.csv"
-    python "${code_path}/plot_lc_allsub2.py" "$rel_csv" "$target_nm"
+    echo "==== Collect all Light Curves & Plot ===="
+    # **收集整理每一轨的光变曲线**
+    python "${code_path}/collect_allsub.py" "$config_file" "$update_list" "$proc_path" || return 1
+
+    # **绘制所有光变曲线**
+    python "${code_path}/collect_lcplot.py" "$config_file" "$r_aper" || return 1
 }
 
 main() {
-    collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
-    process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
-    # merge_subsolar         # Step 3. 合并所有轨次lc csv并统一绘图
+    # collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
+    # process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
+    merge_subsolar         # Step 3. 合并所有轨次lc csv并统一绘图
 }
 
 main  # 执行主函数
