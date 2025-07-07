@@ -53,9 +53,9 @@ def main():
     # print(r_cho, r_in, r_out, r_step, r_all)
     # t0 = pd.to_datetime(config['t0'])
     # print(t0)
-    rlst = np.round([r_cho, r_all], 1).tolist()  # 孔径测光半径 list
+    # rlst = np.round([r_cho, r_all], 1).tolist()  # 孔径测光半径 list
     # rlst = np.round(np.arange(r_step, r_in + r_step, r_step), 1).tolist()  # 计算孔径半径列表
-    print(rlst)
+    # print(rlst)
     
     # 读取grb_xyposs.csv，获取每帧目标源的xy位置
     grb_xy_df = pd.read_csv('grb_xyposs.csv')
@@ -72,10 +72,9 @@ def main():
         try:
             frame = imgs[k]
             df_img = pd.DataFrame()  # 创建一个空的 DataFrame 来存储所有的表格数据
-            for j in range(len(rlst)):
-                phot = aphot.photut_aper(frame, [grb_xys[frame]], rlst[j], r_in, r_out)
-                df_phot = phot.to_pandas()  # 将 QTable 转换为 pandas DataFrame
-                df_img = pd.concat([df_img, df_phot], ignore_index=True)  # 将数据追加到主 DataFrame 中
+            phot = aphot.photut_aper(frame, [grb_xys[frame]], r_cho, r_in, r_out)
+            df_phot = phot.to_pandas()  # 将 QTable 转换为 pandas DataFrame
+            df_img = pd.concat([df_img, df_phot], ignore_index=True)  # 将数据追加到主 DataFrame 中
             df_img['frame'] = frame  # 增加frame列
             all_img_results.append(df_img)
         except Exception as e:

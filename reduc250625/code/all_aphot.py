@@ -256,7 +256,7 @@ def main():
     # print(t0)
 
     # ****计算孔径测光半径列表****
-    rlst = np.round([r_cho, r_all], 1).tolist()  # 孔径测光半径 list
+    rlst = np.round(np.arange(r_step, r_in + r_step, r_step), 1).tolist()
 
     # **检查并读取 fit list**
     fit_lstnm = sys.argv[2]
@@ -273,40 +273,41 @@ def main():
     if not imgs:  # 检查 imgs 是否为空（如果不为空则继续执行，如果为空则不再执行）
         print(f'Error [{os.path.basename(__file__)}]: {fit_lstnm} is empty, Exit...')
         sys.exit(1)
-
-    # **检查有无 pos 目录**
-    pos_dir = 'pos'
-    if not os.path.exists(pos_dir):  # 如果不存在 pos 目录则不再继续
-        print('No [pos] Dir, back to Step 3. Finding Stars')
-        sys.exit(1)
     
-    # **创建 aphot 目录**
-    aphot_dir = 'aphot'
-    if not os.path.exists(aphot_dir):
-        os.makedirs(aphot_dir)
-
     ###########################################################################
     #                           Aperture Photometry                           #
     ###########################################################################
+    # err_lst = []  # List to store images that cause errors
+    # for k in tqdm(range(len(imgs)), desc='Step 5. Aperture Photometry'):
+    #     try:
+    #         pos_csvnm = os.path.splitext(os.path.basename(imgs[k]))[0] + '_pos.csv'
+    #         pos = rd_poscsv(pos_csvnm)
+    #         df_img = pd.DataFrame()  # 创建一个空的 DataFrame 来存储所有的表格数据
+    #         rlst = np.round(np.arange(r_step, r_all + r_step, r_step), 1).tolist()  # 设置孔径半径
+    #         # print(rlst)
+    #         # for j in range(1):  # test
+    #         for j in range(len(rlst)):
+    #             phot = photut_aper(imgs[k], pos, rlst[j], r_in, r_out, target_nm)
+    #             df_phot = phot.to_pandas()  # 将 QTable 转换为 pandas DataFrame
+    #             df_img = pd.concat([df_img, df_phot], ignore_index=True)  # 将数据追加到主 DataFrame 中
+    #         df_csvnm = os.path.basename(imgs[k]).replace('.fit', '_aphot.csv')
+    #         df_img.to_csv(df_csvnm, index=False)  # 保存为一个 CSV 文件
+    #     except Exception as e:
+    #         traceback.print_exc()
+    #         err_lst.append(imgs[k])  # Add the current image to the error list
+
     err_lst = []  # List to store images that cause errors
     for k in tqdm(range(len(imgs)), desc='Step 5. Aperture Photometry'):
         try:
             pos_csvnm = os.path.splitext(os.path.basename(imgs[k]))[0] + '_pos.csv'
-            pos_csvnm = os.path.join(pos_dir, pos_csvnm)
-            pos = rd_poscsv(pos_csvnm)
-            df_img = pd.DataFrame()  # 创建一个空的 DataFrame 来存储所有的表格数据
-            # print(rlst)
-            # for j in range(1):  # test
-            for j in range(len(rlst)):
-                phot = photut_aper(imgs[k], pos, rlst[j], r_in, r_out)
-                df_phot = phot.to_pandas()  # 将 QTable 转换为 pandas DataFrame
-                df_img = pd.concat([df_img, df_phot], ignore_index=True)  # 将数据追加到主 DataFrame 中
-            # aphot_csvnm = os.path.basename(imgs[k]).replace('.fit', '_aphot.csv')
-            # aphot_csv = os.path.join(aphot_dir, aphot_csvnm)
-            # df_img.to_csvt(aphot_csv, index=False)  # 保存为 CSV 文件
-            aphot_parqnm = os.path.basename(imgs[k]).replace('.fit', '_aphot.parquet')
-            aphot_parq = os.path.join(aphot_dir, aphot_parqnm)
-            df_img.to_parquet(aphot_parq, index=False)  # 保存为 Parq 文件
+            pos = rd_poscsv(pos_csvnm)  # 读取星表
+            # 使用线程池并行计算
+            with ThreadPoolExecutor() as executor:
+                df_img = executor.submit(process_aphot, imgs[k], pos, rlst, r_in, r_out).result()
+            # df_csvnm = os.path.basename(imgs[k]).replace('.fit', '_aphot.csv')
+            # df_img.to_csv(df_csvnm, index=False)  # 保存为 CSV 文件
+            df_parqnm = os.path.basename(imgs[k]).replace('.fit', '_aphot.parquet')  # 保存为 Parquet 文件，更节省空间
+            df_img.to_parquet(df_parqnm, index=False)  # 保存为 Par 文件
         except Exception as e:
             traceback.print_exc()
             err_lst.append(imgs[k])  # Add the current image to the error list

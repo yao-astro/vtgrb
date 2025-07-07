@@ -23,6 +23,7 @@ import colorsys
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
+import plotly.subplots as sp
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import matplotlib.dates as mdates
@@ -210,7 +211,7 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
                                     markersize=markersize_val, elinewidth=elw_val, 
                                     capsize=capsize_val, label=label_tag_val, zorder=zorder_val)
                 ax.legend(loc=[0.03, 0.1], fontsize=16., ncol=len(band_lst), framealpha=0.5)
-                fx_lim = cal_xloglim(t_diff)
+                # fx_lim = cal_xloglim(t_diff)
                 # print(fx_lim)
                 # ax.set_xlim(fx_lim[0], fx_lim[1])
                 # fy_lim = cal_ylim(fy, fy_err)
@@ -250,66 +251,16 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
     左上角标注 mag 均值±标准差
     并在每个子图中画出该波段的统计点（中值/均值）
     '''
-    import plotly.graph_objects as go
-    import plotly.subplots as sp
-    import pandas as pd
-    import numpy as np
-
     markersize, elw = 8, 0.5  # 误差棒的线宽
     df = pd.read_csv(lc_csvnm)
     r_lst = df['r_aper'].unique()
     band_lst = df['band'].unique()
 
-    # 统计信息（集成stat_lc.py功能）
-    stat_rows = []
-    for band, dfg in df.groupby('band'):
-        mag_median = dfg['mag'].median()
-        mag_std = dfg['mag'].std()
-        t_start = pd.to_datetime(dfg['t_start'])
-        tmin = t_start.min()
-        tmax = t_start.max()
-        exptime = dfg['EXPTIME'].iloc[0] if 'EXPTIME' in dfg.columns else 0
-        tmax_plus_exp = tmax + pd.to_timedelta(exptime, unit='s')
-        t_center = tmin + (tmax_plus_exp - tmin) / 2
-        t_span = (tmax_plus_exp - tmin) / 2
-        stat_rows.append({
-            'band': band,
-            't_center': t_center.strftime('%Y-%m-%dT%H:%M:%S'),
-            't_span_sec': t_span.total_seconds(),
-            'mag_median': mag_median,
-            'mag_std': mag_std
-        })
-    stat_dict = {row['band']: row for row in stat_rows}
-    # 保存统计点为新csv
-    stat_csv = lc_csvnm.replace('.csv', '_stat.csv')
-    pd.DataFrame(stat_rows).to_csv(stat_csv, index=False)
-    print(f"统计点已保存为 {stat_csv}")
-
-    # 创建上下两行子图，x轴对齐
-    fig = sp.make_subplots(
-        rows=2, cols=1, shared_xaxes=True,
-        vertical_spacing=0.18,  # 增大分隔
-        subplot_titles=("", "")  # 不显示 band 名称
-    )
-
+    # 创建单一子图，所有band画在同一幅图中
+    fig = go.Figure()
     color_map = ['blue', 'red', 'orange', 'green']
-    stat_color_map = {'VT_B': 'cyan', 'VT_R': 'orange'}
     for i, band in enumerate(band_lst):
         dfb = df[df['band'] == band]
-        # 计算均值和标准差
-        mag_mean = dfb['mag'].mean()
-        mag_std = dfb['mag'].std()
-        # 左上角标注
-        xref = 'x domain' if i == 0 else 'x2 domain'
-        yref = 'y domain' if i == 0 else 'y2 domain'
-        fig.add_annotation(
-            text=f"{mag_mean:.3f} ± {mag_std:.3f}",
-            xref=xref, yref=yref,
-            x=0.01, y=0.99, showarrow=False,
-            font=dict(size=18, color=color_map[i % len(color_map)]),
-            align="left",
-            row=i+1, col=1
-        )
         for is_single in [True, False]:
             dfb_sub = dfb[dfb['ncombine'] == 1] if is_single else dfb[dfb['ncombine'] != 1]
             if dfb_sub.empty:
@@ -342,35 +293,8 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
                     name=f'{band} {"single" if is_single else "stacked"}',
                     showlegend=True,
                     hovertemplate=hovertemplate
-                ),
-                row=i+1, col=1
+                )
             )
-        # # 画统计点（中值），颜色区分波段
-        # stat = stat_dict[band]
-        # stat_color = stat_color_map.get(band, 'black')
-        # fig.add_trace(
-        #     go.Scatter(
-        #         x=[stat['t_center']],
-        #         y=[stat['mag_median']],
-        #         error_y=dict(type='data', array=[stat['mag_std']], visible=True, thickness=elw * 2),
-        #         error_x=dict(type='data', array=[stat['t_span_sec']], visible=True, thickness=elw * 2),
-        #         mode='markers',
-        #         marker=dict(color=stat_color, size=18, symbol='star'),
-        #         name=f'{band} stat',
-        #         showlegend=True,
-        #         hovertemplate=f"统计点<br>mag={stat['mag_median']:.3f}±{stat['mag_std']:.3f}<br>time=%{{x|%Y-%m-%dT%H:%M:%S}}±{stat['t_span_sec']:.0f}s<extra></extra>"
-        #     ),
-        #     row=i+1, col=1
-        # )
-        # # 画中值和标准差的三条虚线
-        # mag_median = dfb['mag'].median()
-        # mag_std = dfb['mag'].std()
-        # for offset, dash, color in zip([0, +mag_std, -mag_std], ['dash', 'dot', 'dot'], ['gray', 'gray', 'gray']):
-        #     fig.add_hline(
-        #         y=mag_median + offset,
-        #         line=dict(color=color, width=2, dash=dash),
-        #         row=i+1, col=1
-        #     )
 
     # 设置标题和布局
     if t0:
@@ -380,19 +304,12 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
         t0r_text = f'r = {r_lst[0]}'
     fig.update_layout(
         title=dict(
-            text=f"<b>Light Curve of {target_nm}</b><br><sub>{t0r_text}</sub>",
+            text=f"<b>{target_nm}</b><br><sub>{t0r_text}</sub>",
             x=0.5,
             xanchor='center'
         ),
         xaxis=dict(
-            title="",  # 上图无x轴标签
-            tickformat="%y-%m-%dT%H:%M:%S",
-            showgrid=True,
-            tickangle=45,
-            tickfont=dict(size=14)
-        ),
-        xaxis2=dict(
-            title="Obs. Time",  # 仅下图有x轴标签
+            title="Obs. Time",
             tickformat="%y-%m-%dT%H:%M:%S",
             showgrid=True,
             tickangle=45,
@@ -403,28 +320,82 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
             showgrid=True,
             autorange="reversed"
         ),
-        yaxis2=dict(
-            title="Mag",
-            showgrid=True,
-            autorange="reversed"
-        ),
         template="plotly_dark",
         width=1600,
-        height=900,
+        height=1200,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    # 在两图之间添加显著分隔线
-    fig.add_shape(
-        type="rect",
-        xref="paper", yref="paper",
-        x0=0, x1=1, y0=0.495, y1=0.505,
-        fillcolor="gray", opacity=0.5, layer="below", line_width=0,
-    )
+    # 增加：画log时间轴的所有band合图
+    if t0 is not None:
+        fig_log = go.Figure()
+        for i, band in enumerate(band_lst):
+            dfb = df[df['band'] == band]
+            for is_single in [True, False]:
+                dfb_sub = dfb[dfb['ncombine'] == 1] if is_single else dfb[dfb['ncombine'] != 1]
+                if dfb_sub.empty:
+                    continue
+                t_start = pd.to_datetime(dfb_sub['t_start'])
+                t_diff = (t_start - t0).dt.total_seconds()
+                fy = dfb_sub['mag'].round(3)
+                fy_err = dfb_sub['mag_err']
+                color_val = color_map[i % len(color_map)] if is_single else 'cyan'
+                size_val = markersize * 2 if is_single else markersize * 2.5
+                symbol_val = 'circle' if is_single else 'diamond'
+                hovertemplate = "%{y:.3f} ± %{customdata:.3f}<br>Δt=%{x:.1f}s<extra></extra>"
+                fig_log.add_trace(
+                    go.Scatter(
+                        x=t_diff, y=fy,
+                        error_y=dict(
+                            type='data',
+                            array=fy_err,
+                            visible=True,
+                            thickness=elw * 2
+                        ),
+                        customdata=fy_err,
+                        mode='markers',
+                        marker=dict(
+                            color=color_val,
+                            size=size_val,
+                            symbol=symbol_val,
+                            line=dict(width=1, color='black')
+                        ),
+                        name=f'{band} {"single" if is_single else "stacked"}',
+                        showlegend=True,
+                        hovertemplate=hovertemplate
+                    )
+                )
+        t0_str = t0.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
+        t0r_text = f'T₀ = {t0_str}, r = {r_lst[0]}'
+        fig_log.update_layout(
+            title=dict(
+                text=f"<b>{target_nm}</b><br><sub>{t0r_text}</sub>",
+                x=0.5,
+                xanchor='center'
+            ),
+            xaxis=dict(
+                title="T - T₀ (s)",
+                type='log',
+                showgrid=True,
+                tickfont=dict(size=14)
+            ),
+            yaxis=dict(
+                title="Mag",
+                showgrid=True,
+                autorange="reversed"
+            ),
+            template="plotly_dark",
+            width=1600,
+            height=1200,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        lc_log_htmlnm = lc_csvnm.replace('.csv', '_log.html')
+        fig_log.write_html(lc_log_htmlnm)
+        print(f"light curve saved to {lc_log_htmlnm}")
 
     lc_htmlnm = lc_csvnm.replace('.csv', '.html')
     fig.write_html(lc_htmlnm)
-    print(f"Light curve plot saved to {lc_htmlnm}")
+    print(f"Light curve saved to {lc_htmlnm}")
 
 
 def filter_outliers(df, mag_col='mag', mag_err_col='mag_err', sigma=3, max_mag_err=0.2, max_iter=5):
@@ -458,21 +429,18 @@ def main():
     raper_chos = config['raper_chos']
     r_cho, r_in, r_out, r_step, r_all = raper_chos
     # print(r_cho, r_in, r_out, r_step, r_all)
+    t0 = pd.to_datetime(config['t0'])  # 读取 T0 时间
 
-    lc_path = 'lc/'  # write data to lc
-    os.makedirs(lc_path, exist_ok=True)
-
-    df = pd.read_csv('std_aphot.csv')
+    df = pd.read_csv('grb_aphot_magc.csv')
     df_sel = df[df['r_aper'] == r_cho]  # 指定孔径半径
     # 剔除离群点和大误差点
-    df_sel = filter_outliers(df_sel, mag_col='mag', mag_err_col='mag_err', sigma=3, max_mag_err=0.2, max_iter=5)
-    # 保存为新csv
+    # df_sel = filter_outliers(df_sel, mag_col='mag', mag_err_col='mag_err', sigma=3, max_mag_err=0.2, max_iter=5)
     r_cho_text = f'{r_cho:.1f}'.replace('.', '_')
-    lc_csvnm = os.path.join(lc_path, f'{target_nm}_lc_{r_cho_text}.csv')
-    df_sel.to_csv(lc_csvnm, index=False)
+    lc_csvnm = f'{target_nm}_lc_{r_cho_text}.csv'
+    df_sel.to_csv(lc_csvnm, index=False)  # 保存为新csv
     print(f'已保存为 {lc_csvnm}，包含 {len(df_sel)} 行。')
     # plot_lc(lc_csvnm, target_nm, t0)
-    plot_lc_html(lc_csvnm, target_nm)
+    plot_lc_html(lc_csvnm, target_nm, t0)
 
     # Cal Time
     end_time = time.time()

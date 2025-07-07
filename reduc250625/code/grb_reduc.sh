@@ -155,33 +155,44 @@ aphot() {
         python "$@"
     }
 
-    # # **检查关键字**
-    # rm -rf err1_check.lst
-    # run_python_step "allfit.lst" "${code_path}/check_fits.py" allfit.lst || return 1
+    # **检查关键字**
+    rm -rf err1_check.lst
+    run_python_step "allfit.lst" "${code_path}/check_fits.py" allfit.lst || return 1
 
-    # # **测量像素坐标**
-    # rm -rf err2_finds.lst *_pos.csv
-    # run_python_step "suc.lst" "${code_path}/find_stars.py" suc.lst || return 1
+    # **测量像素坐标**
+    rm -rf err2_finds.lst *_pos.csv
+    run_python_step "suc.lst" "${code_path}/find_stars.py" suc.lst || return 1
 
-    # # **星表匹配**
-    # run_python_step "suc.lst" "${code_path}/match_stars.py" suc.lst || return 1
+    # 检查suc.lst长度
+    if [[ ! -s suc.lst || $(wc -l < suc.lst) -lt 3 ]]; then
+        echo "[WARN] suc.lst 文件过短，跳过后续步骤。"
+        cd - > /dev/null
+        return 1
+    fi
+
+    # **自动找星孔径测光**
+    rm -rf err3_aphot.lst *_aphot.parquet *_aphot.csv
+    run_python_step "suc.lst" "${code_path}/aphot.py" ${config_file} suc.lst || return 1
+
+    # # **计算星等孔径改正值**
+    rm -rf *_magc.csv *_magc.pdf *_magc.png
+    python ${code_path}/cal_magcor.py "$config_file" suc.lst || return 1
+    
+    # **GRB星表匹配**
+    rm -rf grb_xyposs.csv
+    run_python_step "suc.lst" "${code_path}/grb_match.py" suc.lst || return 1
 
     # **GRB孔径测光**
+    rm -rf grb_aphot.csv
     python "${code_path}/grb_aphot.py" "$config_file" || return 1
 
-    # # 检查suc.lst长度
-    # if [[ ! -s suc.lst || $(wc -l < suc.lst) -lt 3 ]]; then
-    #     echo "[WARN] suc.lst 文件过短，跳过后续步骤。"
-    #     cd - > /dev/null
-    #     return 1
-    # fi
+    # **GRB星等孔径改正**
+    rm -rf grb_aphot_magc.csv
+    python "${code_path}/grb_magcor.py" || return 1
 
-    # # **孔径测光**
-    # rm -rf err3_aphot.lst *_aphot.parquet
-    # run_python_step "suc.lst" "${code_path}/aphot.py" ${config_file} suc.lst || return 1
-
-    # # **绘图**
-    # run_python_step "suc.lst" "${code_path}/plot_lc_1sub.py" ${config_file} || return 1
+    # **GRB光变曲线绘制**
+    rm -rf *_lc_*.csv *_lc_*.html
+    run_python_step "grb_aphot_magc.csv" "${code_path}/grb_lcplot.py" "$config_file" "$r_aper" || return 1
 
     cd - > /dev/null
     return 0

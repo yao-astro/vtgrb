@@ -25,12 +25,14 @@ __pycache__/
 *.tmp
 *.npy
 *.npz
+*.html
 
 # Ignore output and intermediate files
 *_aphot.csv
 *_aphot.parquet
 grb_aphot.csv
 grb_xyposs.csv
+grb_aphot_magc.csv
 err*.lst
 suc.lst
 

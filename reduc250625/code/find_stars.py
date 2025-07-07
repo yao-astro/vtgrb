@@ -158,12 +158,18 @@ def main():
         print(f'Error [{os.path.basename(__file__)}]: {fit_lstnm} is empty, Exit...')
         sys.exit(1)
 
+    # **创建 pos 目录**
+    pos_dir = 'pos'
+    if not os.path.exists(pos_dir):
+        os.makedirs(pos_dir)
+
     err_lst = []  # List to store images that cause errors
     for k in tqdm(range(len(imgs)), desc='Step 3. Finding Stars'):
         try:
             pos_csvnm = os.path.splitext(os.path.basename(imgs[k]))[0] + '_pos.csv'  # 获取文件后缀
-            findstars_sep(imgs[k], pos_csvnm)
-            # plot_stars(imgs[k], pos_csvnm)
+            pos_csv = os.path.join(pos_dir, pos_csvnm)
+            findstars_sep(imgs[k], pos_csv)
+            # plot_stars(imgs[k], pos_csv)
         except Exception as e:
             print(f"Error processing {imgs[k]}: {e}")
             err_lst.append(imgs[k])  # Add the current image to the error list
