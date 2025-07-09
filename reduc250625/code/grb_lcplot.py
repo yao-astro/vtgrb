@@ -58,9 +58,8 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
     markersize, elw = 8, 0.5  # 误差棒的线宽
 
     df = pd.read_csv(lc_csvnm)
-    dfo = df[df['obj_id'] == target_nm]
     r_lst = df['r_aper'].unique()
-    band_lst = dfo['band'].unique()
+    band_lst = df['band'].unique()
 
     # **画时间为线性的图**
     fig, ax = plt.subplots(len(band_lst), 1, sharex=True, figsize=(16, 20))
@@ -69,7 +68,7 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
     if len(band_lst) == 1:  # 如果只有一个子图，则ax是单个对象，需要转换为列表
         ax = [ax]
     for i in range(len(band_lst)):
-        dfb = dfo[dfo['band'] == band_lst[i]]
+        dfb = df[df['band'] == band_lst[i]]
         for is_single in [True, False]:  # True -> ncombine == 1, False -> ncombine != 1
             dfb_sub = dfb[dfb['ncombine'] == 1] if is_single else dfb[dfb['ncombine'] != 1]
             if dfb_sub.empty:
@@ -157,7 +156,7 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
     if t0:
         fig, ax = plt.subplots(1, 1, sharex=True, figsize=(16, 10))
         for i in range(len(band_lst)):
-            dfb = dfo[dfo['band'] == band_lst[i]]
+            dfb = df[df['band'] == band_lst[i]]
             for is_single in [True, False]:
                 dfb_sub = dfb[dfb['ncombine'] == 1] if is_single else dfb[dfb['ncombine'] != 1]
                 if dfb_sub.empty:
@@ -439,7 +438,7 @@ def main():
     lc_csvnm = f'{target_nm}_lc_{r_cho_text}.csv'
     df_sel.to_csv(lc_csvnm, index=False)  # 保存为新csv
     print(f'已保存为 {lc_csvnm}，包含 {len(df_sel)} 行。')
-    # plot_lc(lc_csvnm, target_nm, t0)
+    plot_lc(lc_csvnm, target_nm, t0)
     plot_lc_html(lc_csvnm, target_nm, t0)
 
     # Cal Time

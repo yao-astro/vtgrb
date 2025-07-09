@@ -74,6 +74,7 @@ def main():
     # 读取光变曲线数据
     df = pd.read_csv(lc_csv)
     grb_lcplot.plot_lc_html(lc_csv, target_nm, t0)
+    # grb_lcplot.plot_lc(lc_csv, target_nm, t0)
 
     # Cal Time
     end_time = time.time()

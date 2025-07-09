@@ -24,6 +24,15 @@ echo "data_paths:"
 for dp in "${data_paths[@]}"; do
     echo "  $dp"
 done
+# **解析配置文件中的 IMASTK 数据路径**
+imastk_paths=()
+for line in $(yq eval '.imastk_path[]' "$config_file" | sed 's/^ *- *//' | awk NF); do
+    imastk_paths+=("$line")
+done
+echo "imastk_paths:"
+for dp in "${imastk_paths[@]}"; do
+    echo "  $dp"
+done
 # **定义输出目录结构并创建需要的目录**
 proc_path="${reduc_path}/proc"  # 数据处理过程文件存放目录
 echo "reduc_path:      <$reduc_path>"
@@ -92,7 +101,7 @@ collect_orbit_to_date() {
     echo "🔍 Collected orbit mapping (sorted by orbit):"
     for orbit in $(echo "${!orbit_to_date[@]}" | tr ' ' '\n' | sort); do
         echo "$orbit -> ${orbit_to_date[$orbit]}"
-    done    
+    done
 }
 
 # **Step 2. 按轨次建立目录并处理对应的 FIT 文件**
@@ -123,7 +132,6 @@ process_each_orbit() {
         echo "✅ Completed : $orbit_dirnm"
     done
 }
-
 
 aphot() {
     local proc_orbit_path="$1"
@@ -207,9 +215,50 @@ merge_subsolar() {
     python "${code_path}/collect_lcplot.py" "$config_file" "$r_aper" || return 1
 }
 
+# **Step 3. 判断有无图像合并的数据，并决定是否处理**
+process_imastk_data() {
+    # 检查 imastk_paths 是否为空
+    if [[ ${#imastk_paths[@]} -eq 0 ]]; then
+        echo "❌ No IMASTK paths found in config file."
+        return 1
+    fi
+    imastk_dirnm="imastk"
+    proc_imastk_path="${proc_path}/${imastk_dirnm}"
+    mkdir -p "$proc_imastk_path"
+    allfit_file="$proc_imastk_path/allfit.lst"
+    > "$allfit_file"
+    found_any=0
+    # 合并所有imastk_paths下的*.fit文件
+    for raw_imastk_path in "${imastk_paths[@]}"; do
+        echo "-----------------------------------------------------"
+        echo "🔍 Scanning IMASTK data from: $raw_imastk_path"
+        if [[ ! -d "$raw_imastk_path" ]]; then
+            echo "❌ Directory does NOT exist: $raw_imastk_path"
+            continue
+        fi
+        cnt=$(find "$raw_imastk_path" -maxdepth 1 -type f -name "*.fit" | tee -a "$allfit_file" | wc -l)
+        if [[ $cnt -gt 0 ]]; then
+            found_any=1
+        fi
+    done
+    if [[ $found_any -eq 0 ]]; then
+        echo "❌ No *.fit files found in any IMASTK path."
+        return 1
+    fi
+    if grep -Fxq "$imastk_dirnm" "$update_list"; then
+        echo "✅ Already processed: <$imastk_dirnm>"
+    else
+        echo "🚀 Processing all IMASTK data together in: $proc_imastk_path"
+        aphot "$proc_imastk_path" "$config_file" "$code_path"
+        echo "$imastk_dirnm" >> "$update_list"
+        echo "✅ Completed: ${imastk_dirnm}"
+    fi
+}
+
 main() {
     # collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
     # process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
+    # process_imastk_data    # Step 4. 处理 IMASTK 数据
     merge_subsolar         # Step 3. 合并所有轨次lc csv并统一绘图
 }
 
