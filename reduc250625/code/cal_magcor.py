@@ -151,10 +151,16 @@ def main():
     
     # **检查有无 aphot 目录**
     aphot_dir = 'aphot'
-    if not os.path.exists(aphot_dir):  # 如果不存在 aphot 目录则不再继续）
+    if not os.path.exists(aphot_dir):  # 如果不存在 aphot 目录则不再继续
         print('No [aphot] Dir, back to Step 4. Aperture Photometry')
         sys.exit(1)
-    
+
+    # **检查有无 maglim 目录**
+    maglim_dir = 'maglim'
+    if not os.path.exists(maglim_dir):  # 如果不存在 maglim 目录则不计算极限星等
+        print('No [maglim] Dir, back to Step 5. Calculate Magnitude Limit')
+        # sys.exit(1)
+
     # **检查有无 magc 目录**
     magc_dir = 'magc'
     if not os.path.exists(magc_dir):  # 如果不存在 magc 目录则创建
@@ -164,10 +170,12 @@ def main():
     for k in tqdm(range(len(imgs)), desc='Step 6. Correcting Magnitude'):
         try:
             aphot_parqnm = os.path.splitext(os.path.basename(imgs[k]))[0] + '_aphot.parquet'
+            maglim_csvnm = aphot_parqnm.replace('_aphot.parquet', '_maglim.csv')
             magc_csvnm = aphot_parqnm.replace('_aphot.parquet', '_magc.csv')
             magc_pngnm = aphot_parqnm.replace('_aphot.parquet', '_magc.png')
 
             aphot_parq = os.path.join(aphot_dir, aphot_parqnm)
+            maglim_csv = os.path.join(maglim_dir, maglim_csvnm)
             magc_csv = os.path.join(magc_dir, magc_csvnm)  # 保存到 magc_dir
             magc_png = os.path.join(magc_dir, magc_pngnm)  # 保存到 magc_dir
             # 保存所有r对的校正量和误差到csv，所有图像到png
@@ -175,6 +183,24 @@ def main():
             for j in range(len(r_pairs)):
                 c, c_err, fig = get_magc(aphot_parq, r_pairs[j])
                 magc_rows.append({'r1': r_pairs[j][0], 'r2': r_pairs[j][1], 'c': c, 'c_err': c_err})
+                # 如果存在maglim_csv,则读取r1对应的r_aper的mag_limit,计算magc_limit=mag_limit + c
+                if os.path.exists(maglim_csv):
+                    mag_lim_df = pd.read_csv(maglim_csv)
+                    r1_mask = mag_lim_df['r_aper'] == r_pairs[j][0]
+                    if not mag_lim_df[r1_mask].empty:
+                        mag_limit = mag_lim_df.loc[r1_mask, 'mag_limit'].values[0]
+                        magc_limit = mag_limit + c
+                        # 如果 mag_limit 有误差列，可合成误差，否则只用 c_err
+                        if 'mag_limit_err' in mag_lim_df.columns:
+                            mag_limit_err = mag_lim_df.loc[r1_mask, 'mag_limit_err'].values[0]
+                            magc_limit_err = np.sqrt(mag_limit_err**2 + c_err**2)
+                        else:
+                            magc_limit_err = c_err
+                        # 可将 magc_limit, magc_limit_err 加入 magc_rows
+                        magc_rows[-1]['mag_limit'] = mag_limit
+                        magc_rows[-1]['magc_limit'] = magc_limit
+                        magc_rows[-1]['magc_limit_err'] = magc_limit_err if 'mag_limit_err' in mag_lim_df.columns else c_err
+ 
                 fig.savefig(magc_png, dpi=150, bbox_inches='tight')
                 plt.close(fig)
             magc_df = pd.DataFrame(magc_rows)

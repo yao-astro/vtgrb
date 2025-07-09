@@ -56,12 +56,15 @@ def main():
             new_row['r_all'] = magc_row['r2']
             new_row['cmag'] = magc_row['c']
             new_row['cmag_err'] = magc_row['c_err']
+            new_row['magc_limit'] = magc_row['magc_limit']
+            new_row['magc_limit_err'] = magc_row['magc_limit_err']
             rows.append(new_row)
 
     # 4. 合并所有新行，保存，只保留指定列
     df_new = pd.DataFrame(rows)
     keep_cols = ['t_start', 'mag_c', 'mag_c_err', 'band', 'expt', 'ncombine', 
-                 'sn', 'r_aper', 'r_all', 'mag', 'mag_err', 'cmag', 'cmag_err']
+                 'sn', 'r_aper', 'r_all', 'mag', 'mag_err', 'cmag', 'cmag_err', 
+                 'magc_limit', 'magc_limit_err']
     df_new = df_new[keep_cols]
     df_new.to_csv('grb_aphot_magc.csv', index=False)
 

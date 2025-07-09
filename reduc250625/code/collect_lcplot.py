@@ -1,15 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Created on Wed Nov 13 16:21 2024
-
-v1: Edited in Fri Nov 29 16:41 2024
-v2: Edited in Wed Dec 25 21:05 2024
-
-@author: Zhuheng_Yao
-"""
-
 import os
 import re
 import ast
@@ -72,9 +63,7 @@ def main():
         sys.exit(1)
         
     # 读取光变曲线数据
-    df = pd.read_csv(lc_csv)
-    grb_lcplot.plot_lc_html(lc_csv, target_nm, t0)
-    # grb_lcplot.plot_lc(lc_csv, target_nm, t0)
+    grb_lcplot.plot_lc_html(lc_csv, target_nm, 'mag_c', 'mag_c_err', 'magc_limit', t0)
 
     # Cal Time
     end_time = time.time()

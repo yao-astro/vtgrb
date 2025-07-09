@@ -59,8 +59,9 @@ def main():
     for csvf in csv_list[1:]:
         df = pd.read_csv(csvf)
         df_all = pd.concat([df_all, df], ignore_index=True)
-    df_all = filter_outliers(df_all)  # 默认使用 sn_thresh_B=0.5, sn_thresh_R=1
+    # df_all = filter_outliers(df_all)  # 默认使用 sn_thresh_B=0.5, sn_thresh_R=1
     # df_all = filter_outliers(df_all, sn_thresh_B=3, sn_thresh_R=3)  # 两个波段均按 3 sigma 筛选数据
+    df_all = filter_outliers(df_all, sn_thresh_B=0.3, sn_thresh_R=1)
     # 数据保存到 res 目录下
     out_dir = 'res'
     if not os.path.exists(out_dir):

@@ -162,57 +162,53 @@ aphot() {
         # 执行Python脚本，传递所有参数
         python "$@"
     }
-
-    # **检查关键字**
-    rm -rf err1_check.lst
-    run_python_step "allfit.lst" "${code_path}/check_fits.py" allfit.lst || return 1
-
-    # **测量像素坐标**
-    rm -rf err2_finds.lst *_pos.csv
-    run_python_step "suc.lst" "${code_path}/find_stars.py" suc.lst || return 1
-
-    # 检查suc.lst长度
-    if [[ ! -s suc.lst || $(wc -l < suc.lst) -lt 3 ]]; then
-        echo "[WARN] suc.lst 文件过短，跳过后续步骤。"
-        cd - > /dev/null
-        return 1
-    fi
-
-    # **自动找星孔径测光**
-    rm -rf err3_aphot.lst *_aphot.parquet *_aphot.csv
-    run_python_step "suc.lst" "${code_path}/aphot.py" ${config_file} suc.lst || return 1
-
-    # # **计算星等孔径改正值**
+# # ---------------------------------------------------------------------------------------------------------
+    # # **检查关键字**
+    # rm -rf err1_check.lst
+    # run_python_step "allfit.lst" "${code_path}/check_fits.py" allfit.lst || return 1
+# # ---------------------------------------------------------------------------------------------------------
+    # # **测量像素坐标**
+    # rm -rf err2_finds.lst *_pos.csv
+    # run_python_step "suc.lst" "${code_path}/find_stars.py" suc.lst || return 1
+# # ---------------------------------------------------------------------------------------------------------
+    # # 检查suc.lst长度
+    # if [[ ! -s suc.lst || $(wc -l < suc.lst) -lt 3 ]]; then
+    #     echo "[WARN] suc.lst 文件过短，跳过后续步骤。"
+    #     cd - > /dev/null
+    #     return 1
+    # fi
+# # ---------------------------------------------------------------------------------------------------------
+    # # **自动找星孔径测光**
+    # rm -rf err3_aphot.lst *_aphot.parquet *_aphot.csv
+    # run_python_step "suc.lst" "${code_path}/aphot.py" ${config_file} suc.lst || return 1
+# # ---------------------------------------------------------------------------------------------------------
+    # **计算极限星等**
+    rm -rf *_maglim.csv
+    python "${code_path}/cal_maglimit.py" ${config_file} suc.lst || return 1
+# # ---------------------------------------------------------------------------------------------------------
+    # **计算星等孔径改正值**
     rm -rf *_magc.csv *_magc.pdf *_magc.png
     python ${code_path}/cal_magcor.py "$config_file" suc.lst || return 1
-    
+# # ---------------------------------------------------------------------------------------------------------
     # **GRB星表匹配**
     rm -rf grb_xyposs.csv
     run_python_step "suc.lst" "${code_path}/grb_match.py" suc.lst || return 1
-
+# # ---------------------------------------------------------------------------------------------------------
     # **GRB孔径测光**
     rm -rf grb_aphot.csv
     python "${code_path}/grb_aphot.py" "$config_file" || return 1
-
+# # ---------------------------------------------------------------------------------------------------------
     # **GRB星等孔径改正**
     rm -rf grb_aphot_magc.csv
     python "${code_path}/grb_magcor.py" || return 1
-
+# # ---------------------------------------------------------------------------------------------------------
     # **GRB光变曲线绘制**
     rm -rf *_lc_*.csv *_lc_*.html
     run_python_step "grb_aphot_magc.csv" "${code_path}/grb_lcplot.py" "$config_file" "$r_aper" || return 1
+# # ---------------------------------------------------------------------------------------------------------
 
     cd - > /dev/null
     return 0
-}
-
-merge_subsolar() {
-    echo "==== Collect all Light Curves & Plot ===="
-    # **收集整理每一轨的光变曲线**
-    python "${code_path}/collect_allsub.py" "$config_file" "$update_list" "$proc_path" || return 1
-
-    # **绘制所有光变曲线**
-    python "${code_path}/collect_lcplot.py" "$config_file" "$r_aper" || return 1
 }
 
 # **Step 3. 判断有无图像合并的数据，并决定是否处理**
@@ -255,11 +251,20 @@ process_imastk_data() {
     fi
 }
 
+merge_subsolar() {
+    echo "==== Collect all Light Curves & Plot ===="
+    # **收集整理每一轨的光变曲线**
+    python "${code_path}/collect_allsub.py" "$config_file" "$update_list" "$proc_path" || return 1
+
+    # **绘制所有光变曲线**
+    python "${code_path}/collect_lcplot.py" "$config_file" "$r_aper" || return 1
+}
+
 main() {
-    # collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
-    # process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
-    # process_imastk_data    # Step 4. 处理 IMASTK 数据
-    merge_subsolar         # Step 3. 合并所有轨次lc csv并统一绘图
+    collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
+    process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
+    process_imastk_data    # Step 3. 处理 IMASTK 数据
+    merge_subsolar         # Step 4. 合并所有轨次lc csv并统一绘图
 }
 
 main  # 执行主函数

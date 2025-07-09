@@ -58,8 +58,9 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
     markersize, elw = 8, 0.5  # 误差棒的线宽
 
     df = pd.read_csv(lc_csvnm)
+    dfo = df[df['obj_id'] == target_nm]
     r_lst = df['r_aper'].unique()
-    band_lst = df['band'].unique()
+    band_lst = dfo['band'].unique()
 
     # **画时间为线性的图**
     fig, ax = plt.subplots(len(band_lst), 1, sharex=True, figsize=(16, 20))
@@ -68,7 +69,7 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
     if len(band_lst) == 1:  # 如果只有一个子图，则ax是单个对象，需要转换为列表
         ax = [ax]
     for i in range(len(band_lst)):
-        dfb = df[df['band'] == band_lst[i]]
+        dfb = dfo[dfo['band'] == band_lst[i]]
         for is_single in [True, False]:  # True -> ncombine == 1, False -> ncombine != 1
             dfb_sub = dfb[dfb['ncombine'] == 1] if is_single else dfb[dfb['ncombine'] != 1]
             if dfb_sub.empty:
@@ -156,7 +157,7 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
     if t0:
         fig, ax = plt.subplots(1, 1, sharex=True, figsize=(16, 10))
         for i in range(len(band_lst)):
-            dfb = df[df['band'] == band_lst[i]]
+            dfb = dfo[dfo['band'] == band_lst[i]]
             for is_single in [True, False]:
                 dfb_sub = dfb[dfb['ncombine'] == 1] if is_single else dfb[dfb['ncombine'] != 1]
                 if dfb_sub.empty:
@@ -242,7 +243,8 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
         plt.close()
 
 
-def plot_lc_html(lc_csvnm, target_nm, t0=None):
+def plot_lc_html(lc_csv, target_nm, 
+                 mag_nm='mag', mag_err_nm='mag_err', mag_limit_nm='mag_limit', t0=None):
     '''
     画光变曲线并输出为 HTML 格式
     两个波段上下两幅图，横轴时间对齐，中间有显著分隔
@@ -251,13 +253,19 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
     并在每个子图中画出该波段的统计点（中值/均值）
     '''
     markersize, elw = 8, 0.5  # 误差棒的线宽
-    df = pd.read_csv(lc_csvnm)
+    df = pd.read_csv(lc_csv)
     r_lst = df['r_aper'].unique()
     band_lst = df['band'].unique()
 
     # 创建单一子图，所有band画在同一幅图中
     fig = go.Figure()
-    color_map = ['blue', 'red', 'orange', 'green']
+    color_dict = {
+        ('VT_B', True): 'blue',
+        ('VT_B', False): 'cyan',
+        ('VT_R', True): 'red',
+        ('VT_R', False): 'orange'
+    }
+    color_map = ['blue', 'red', 'cyan', 'orange']
     for i, band in enumerate(band_lst):
         dfb = df[df['band'] == band]
         for is_single in [True, False]:
@@ -265,11 +273,33 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
             if dfb_sub.empty:
                 continue
             t_start = pd.to_datetime(dfb_sub['t_start'])
-            fy = dfb_sub['mag'].round(3)
-            fy_err = dfb_sub['mag_err']
-            color_val = color_map[i % len(color_map)] if is_single else 'cyan'
+            fy = dfb_sub[mag_nm].round(3)
+            fy_err = dfb_sub[mag_err_nm]
+            color_val = color_dict.get((band, is_single), color_map[i % len(color_map)] if is_single else color_map[i + 2 % len(color_map)])
             size_val = markersize * 2 if is_single else markersize * 2.5
-            symbol_val = 'circle' if is_single else 'diamond'
+            # symbol_val = 'circle' if is_single else 'diamond'
+            symbol_val = 'circle'
+            # **设置数据点透明度**
+            # if is_single:
+            #     marker_dict = dict(
+            #         color='rgba(0,0,0,0)',  # 填充透明
+            #         size=size_val,
+            #         symbol=symbol_val,
+            #         line=dict(width=2, color=color_val)  # 边框为主色
+            #     )
+            # else:
+            #     marker_dict = dict(
+            #         color=color_val,  # 填充为主色
+            #         size=size_val,
+            #         symbol=symbol_val,
+            #         line=dict(width=1, color='black')  # 边框为黑色
+            #     )
+            marker_dict = dict(
+                color=color_val,  # 填充为主色
+                size=size_val,
+                symbol=symbol_val,
+                line=dict(width=1, color='black')  # 边框为黑色
+            )
             # hover显示mag±err和时间
             hovertemplate = "%{y:.3f} ± %{customdata:.3f}<br>%{x|%Y-%m-%dT%H:%M:%S}<extra></extra>"
             fig.add_trace(
@@ -279,16 +309,12 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
                         type='data',
                         array=fy_err,
                         visible=True,
+                        color=color_val, # 误差棒颜色与数据点颜色一致
                         thickness=elw * 2
                     ),
                     customdata=fy_err,
                     mode='markers',
-                    marker=dict(
-                        color=color_val,
-                        size=size_val,
-                        symbol=symbol_val,
-                        line=dict(width=1, color='black')
-                    ),
+                    marker=marker_dict,
                     name=f'{band} {"single" if is_single else "stacked"}',
                     showlegend=True,
                     hovertemplate=hovertemplate
@@ -324,6 +350,9 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
         height=1200,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
+    lc_htmlnm = lc_csv.replace('.csv', '.html')
+    fig.write_html(lc_htmlnm)
+    print(f"Light curve saved to {lc_htmlnm}")
 
     # 增加：画log时间轴的所有band合图
     if t0 is not None:
@@ -336,12 +365,19 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
                     continue
                 t_start = pd.to_datetime(dfb_sub['t_start'])
                 t_diff = (t_start - t0).dt.total_seconds()
-                fy = dfb_sub['mag'].round(3)
-                fy_err = dfb_sub['mag_err']
-                color_val = color_map[i % len(color_map)] if is_single else 'cyan'
-                size_val = markersize * 2 if is_single else markersize * 2.5
-                symbol_val = 'circle' if is_single else 'diamond'
+                fy = dfb_sub[mag_nm].round(3)
+                fy_err = dfb_sub[mag_err_nm]
+                color_val = color_dict.get((band, is_single), color_map[i % len(color_map)] if is_single else color_map[i + 2 % len(color_map)])
+                size_val = markersize * 1.5 if is_single else markersize * 2.5
+                # symbol_val = 'circle' if is_single else 'diamond'
+                symbol_val = 'circle'
                 hovertemplate = "%{y:.3f} ± %{customdata:.3f}<br>Δt=%{x:.1f}s<extra></extra>"
+                marker_dict = dict(
+                    color=color_val,  # 填充为主色
+                    size=size_val,
+                    symbol=symbol_val,
+                    line=dict(width=1, color='black')  # 边框为黑色
+                )                
                 fig_log.add_trace(
                     go.Scatter(
                         x=t_diff, y=fy,
@@ -349,28 +385,49 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
                             type='data',
                             array=fy_err,
                             visible=True,
+                            color=color_val,  # 误差棒颜色与数据点颜色一致
                             thickness=elw * 2
                         ),
                         customdata=fy_err,
                         mode='markers',
-                        marker=dict(
-                            color=color_val,
-                            size=size_val,
-                            symbol=symbol_val,
-                            line=dict(width=1, color='black')
-                        ),
+                        marker=marker_dict,
                         name=f'{band} {"single" if is_single else "stacked"}',
                         showlegend=True,
                         hovertemplate=hovertemplate
                     )
                 )
+                # 画mag_limit为倒三角marker，并支持hover显示Δt和mag_limit，颜色与主点一致，加入图例
+                if mag_limit_nm in dfb_sub.columns:
+                    ncombine = dfb_sub['ncombine'].values if 'ncombine' in dfb_sub.columns else np.ones(len(dfb_sub))
+                    expt = dfb_sub['expt'].values if 'expt' in dfb_sub.columns else np.full(len(dfb_sub), 0.08)
+                    t_arr = np.array(t_diff)
+                    maglim_arr = np.array(dfb_sub[mag_limit_nm])
+                    hovertext = [f"mag_limit: {mlim:.3f}<br>Δt={tt:.1f} s" for mlim, tt in zip(maglim_arr, t_arr)]
+                    fig_log.add_trace(
+                        go.Scatter(
+                            x=t_arr,
+                            y=maglim_arr,
+                            mode="markers",
+                            marker=dict(
+                                symbol="triangle-down",
+                                size=18,
+                                color=color_val,
+                                line=dict(width=1, color='black')
+                            ),
+                            hoverinfo="text",
+                            hovertext=hovertext,
+                            name=f"{band} mag_limit{' single' if is_single else ' stacked'}",
+                            showlegend=True
+                        )
+                    )
+
         t0_str = t0.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
         t0r_text = f'T₀ = {t0_str}, r = {r_lst[0]}'
         fig_log.update_layout(
             title=dict(
                 text=f"<b>{target_nm}</b><br><sub>{t0r_text}</sub>",
-                x=0.5,
-                xanchor='center'
+                x=0.04,  # 左对齐
+                xanchor='left'
             ),
             xaxis=dict(
                 title="T - T₀ (s)",
@@ -388,13 +445,9 @@ def plot_lc_html(lc_csvnm, target_nm, t0=None):
             height=1200,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        lc_log_htmlnm = lc_csvnm.replace('.csv', '_log.html')
+        lc_log_htmlnm = lc_csv.replace('.csv', '_log.html')
         fig_log.write_html(lc_log_htmlnm)
         print(f"light curve saved to {lc_log_htmlnm}")
-
-    lc_htmlnm = lc_csvnm.replace('.csv', '.html')
-    fig.write_html(lc_htmlnm)
-    print(f"Light curve saved to {lc_htmlnm}")
 
 
 def filter_outliers(df, mag_col='mag', mag_err_col='mag_err', sigma=3, max_mag_err=0.2, max_iter=5):
@@ -438,8 +491,8 @@ def main():
     lc_csvnm = f'{target_nm}_lc_{r_cho_text}.csv'
     df_sel.to_csv(lc_csvnm, index=False)  # 保存为新csv
     print(f'已保存为 {lc_csvnm}，包含 {len(df_sel)} 行。')
-    plot_lc(lc_csvnm, target_nm, t0)
-    plot_lc_html(lc_csvnm, target_nm, t0)
+    # plot_lc(lc_csvnm, target_nm, t0)
+    plot_lc_html(lc_csvnm, target_nm, 'mag_c', 'mag_c_err', 'magc_limit', t0)
 
     # Cal Time
     end_time = time.time()
