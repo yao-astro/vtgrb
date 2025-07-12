@@ -38,6 +38,8 @@ warnings.filterwarnings('ignore', category=RuntimeWarning)
 sys.path.append(os.path.expanduser('~/astroWORK/codesyao/plot/'))
 from pyplotsettings import set_mpl_style
 
+import get_fittime  # 导入获取 FITS 文件时间的函数
+
 
 def strip_str(str_input):
     '''
@@ -136,7 +138,8 @@ def photut_aper(img, pos, r_aper, r_in, r_out):
     dat = hdu[0].data
     header = hdu[0].header
 
-    t_start = header['DATE-OBS']  # 观测开始时间，格式为'%Y-%m-%dT%H:%M:%S.%f'
+    # t_start = header['DATE-OBS']  # 观测开始时间，格式为'%Y-%m-%dT%H:%M:%S.%f'
+    t_start, t_end = get_fittime.get_time(img)  # 获取观测起止时间
     gain = float(header['GAIN'])
     if 'NCOMBINE' in header:
         ncomb = float(header['NCOMBINE'])
@@ -162,7 +165,7 @@ def photut_aper(img, pos, r_aper, r_in, r_out):
 
     # 分离坐标和id，只有在pos中存在ra、dec、obj_idm这些列时才会赋值，否则自动跳过
     pos = np.array(pos)
-    pos_xy = pos[:, :2].astype(float)  # 提取 nx, ny 作为测光坐标
+    pos_xy = pos[:, :2].astype(float) - 1  # 提取坐标并减1 / # FITS星表坐标(xcent/ycent)为1开始，需减1转为python索引
     obj_ra = obj_dec = obj_ids = None
     if pos.shape[1] >= 3:
         obj_ra = pos[:, 2].astype(float)
@@ -214,6 +217,7 @@ def photut_aper(img, pos, r_aper, r_in, r_out):
     phot['ncombine'] = ncomb  # 合并的图像数
     # phot['readrate'] = rdrate
     phot['t_start'] = t_start  # 观测开始时间
+    phot['t_end'] = t_end  # 观测结束时间
     # phot['t_obs'] = t_obs  # 观测中点时间
     # phot['t_obs_err'] = t_obs_err
     phot['band'] = band

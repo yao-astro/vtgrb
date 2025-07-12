@@ -162,25 +162,37 @@ aphot() {
         # 执行Python脚本，传递所有参数
         python "$@"
     }
+
+# **判断是否imastk目录，只做像素坐标测量**
+    if [[ "$(basename $proc_orbit_path)" == "imastk" ]]; then
 # # ---------------------------------------------------------------------------------------------------------
-    # # **检查关键字**
-    # rm -rf err1_check.lst
-    # run_python_step "allfit.lst" "${code_path}/check_fits.py" allfit.lst || return 1
+        # **测量像素坐标**
+        cp allfit.lst suc.lst  # 复制文件列表到 suc.lst
+        rm -rf err2_finds.lst *_pos.csv
+        run_python_step "suc.lst" "${code_path}/find_stars.py" suc.lst || return 1
 # # ---------------------------------------------------------------------------------------------------------
-    # # **测量像素坐标**
-    # rm -rf err2_finds.lst *_pos.csv
-    # run_python_step "suc.lst" "${code_path}/find_stars.py" suc.lst || return 1
+    else
 # # ---------------------------------------------------------------------------------------------------------
-    # # 检查suc.lst长度
-    # if [[ ! -s suc.lst || $(wc -l < suc.lst) -lt 3 ]]; then
-    #     echo "[WARN] suc.lst 文件过短，跳过后续步骤。"
-    #     cd - > /dev/null
-    #     return 1
-    # fi
+        # **检查关键字**
+        rm -rf err1_check.lst
+        run_python_step "allfit.lst" "${code_path}/check_fits.py" allfit.lst || return 1
 # # ---------------------------------------------------------------------------------------------------------
-    # # **自动找星孔径测光**
-    # rm -rf err3_aphot.lst *_aphot.parquet *_aphot.csv
-    # run_python_step "suc.lst" "${code_path}/aphot.py" ${config_file} suc.lst || return 1
+        # **测量像素坐标**
+        rm -rf err2_finds.lst *_pos.csv
+        run_python_step "suc.lst" "${code_path}/find_stars.py" suc.lst || return 1
+# # ---------------------------------------------------------------------------------------------------------
+        # **检查suc.lst长度**
+        if [[ ! -s suc.lst || $(wc -l < suc.lst) -lt 3 ]]; then
+            echo "[WARN] suc.lst 文件过短，跳过后续步骤。"
+            cd - > /dev/null
+            return 1
+        fi
+# # ---------------------------------------------------------------------------------------------------------
+    fi
+# # ---------------------------------------------------------------------------------------------------------
+    # **自动找星孔径测光**
+    rm -rf err3_aphot.lst *_aphot.parquet *_aphot.csv
+    run_python_step "suc.lst" "${code_path}/aphot.py" ${config_file} suc.lst || return 1
 # # ---------------------------------------------------------------------------------------------------------
     # **计算极限星等**
     rm -rf *_maglim.csv
@@ -192,7 +204,8 @@ aphot() {
 # # ---------------------------------------------------------------------------------------------------------
     # **GRB星表匹配**
     rm -rf grb_xyposs.csv
-    run_python_step "suc.lst" "${code_path}/grb_match.py" suc.lst || return 1
+    # run_python_step "suc.lst" "${code_path}/grb_match.py" suc.lst || return 1
+    python "${code_path}/grb_match_mansel.py" ${config_file} suc.lst || return 1
 # # ---------------------------------------------------------------------------------------------------------
     # **GRB孔径测光**
     rm -rf grb_aphot.csv
@@ -238,7 +251,7 @@ process_imastk_data() {
         fi
     done
     if [[ $found_any -eq 0 ]]; then
-        echo "❌ No *.fit files found in any IMASTK path."
+        echo "❌ No stacked images found in IMASTK paths."
         return 1
     fi
     if grep -Fxq "$imastk_dirnm" "$update_list"; then
