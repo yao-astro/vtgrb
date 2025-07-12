@@ -17,8 +17,7 @@ from astropy.stats import sigma_clipped_stats
 from photutils.detection import DAOStarFinder
 from photutils.detection import IRAFStarFinder
 from photutils.datasets import load_star_image
-from astropy.visualization import SqrtStretch
-from astropy.visualization.mpl_normalize import ImageNormalize
+from astropy.visualization import ZScaleInterval, SqrtStretch, ImageNormalize
 from photutils.aperture import aperture_photometry
 from photutils.aperture import CircularAperture, CircularAnnulus
 from matplotlib.colors import LogNorm
@@ -70,7 +69,10 @@ def match_stars(imgs):
         # print(f'写入: {outname}')
     print('全部完成！')
 
-def plot_grb_and_refs(fitnm, grb_x, grb_y, ref_stars, outdir='grb_match_plots', zoom_size=200):
+
+def plot_grb_and_refs(fitnm, grb_x, grb_y, ref_stars, 
+                      outdir='grb_match_plots', zoom_size=30, r_aper=3):
+    markersize, elw = 10, 0.5
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     # 读取图像数据
@@ -78,6 +80,7 @@ def plot_grb_and_refs(fitnm, grb_x, grb_y, ref_stars, outdir='grb_match_plots', 
         img = hdul[0].data
     plt.figure(figsize=(6,6))
     # FITS像素坐标从1开始，Python数组从0开始，需-1
+    print(grb_x, grb_y)
     x0, y0 = grb_x - 1, grb_y - 1
     x1, x2 = int(x0 - zoom_size), int(x0 + zoom_size)
     y1, y2 = int(y0 - zoom_size), int(y0 + zoom_size)
@@ -86,22 +89,41 @@ def plot_grb_and_refs(fitnm, grb_x, grb_y, ref_stars, outdir='grb_match_plots', 
     x2 = min(x2, img.shape[1])
     y2 = min(y2, img.shape[0])
     subimg = img[y1:y2, x1:x2]
-    plt.imshow(subimg, cmap='gray', origin='lower', vmin=np.percentile(subimg, 5), vmax=np.percentile(subimg, 99.5))
-    # 标注GRB理论位置（红色空心圈）
-    plt.scatter([x0-x1], [y0-y1], s=200, edgecolor='red', facecolor='none', marker='o', linewidths=2, label='GRB', zorder=10)
-    # 标注参考星（局部坐标）
+    norm = ImageNormalize(subimg, interval=ZScaleInterval(), stretch=SqrtStretch())
+    # extent 方案，坐标轴直接为原图像素坐标
+    plt.imshow(subimg, cmap='gray', origin='lower', norm=norm, extent=[x1, x2, y1, y2])
+    # 标注GRB理论位置（红色空心圈，直接用原图像素坐标）
+    r_pix = r_aper  # 你想要的像素半径，可自定义
+    ax = plt.gca()
+    fig = plt.gcf()
+    bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    width_pix = bbox.width * fig.dpi
+    pix2pt = (bbox.width * 72) / subimg.shape[1]  # 1像素对应多少points
+    s_grb = (r_pix * pix2pt) ** 2
+    plt.scatter([grb_x-1], [grb_y-1], s=s_grb, edgecolor='red', facecolor='none', 
+                marker='o', linewidths=elw * 2, label='GRB', zorder=10)
+    # 在红圈旁边标注其xy坐标
+    plt.text(grb_x + 0.5, grb_y + 0.5, f"({grb_x:.4f}, {grb_y:.4f})", color='red', fontsize=9, zorder=11)
+    # 标注参考星（原图像素坐标，无需换算）
     if len(ref_stars) > 0:
-        plt.scatter(ref_stars['xcent']-1-x1, ref_stars['ycent']-1-y1, s=80, edgecolor='yellow', facecolor='none', marker='o', label='Ref stars', zorder=9)
-        for i, row in ref_stars.iterrows():
-            plt.text(row['xcent']-1-x1+3, row['ycent']-1-y1+3, f"{int(row['obj_id'])}", color='yellow', fontsize=8)
-    plt.title(os.path.basename(fitnm))
-    plt.legend()
-    plt.xlabel('X [pix] (zoomed)')
-    plt.ylabel('Y [pix] (zoomed)')
+        r_pix_ref = 6  # 参考星像素半径，可自定义
+        s_ref = (r_pix_ref * pix2pt) ** 2
+        # 只保留在subimg范围内的参考星
+        mask_in = (ref_stars['xcent']-1 >= x1) & (ref_stars['xcent']-1 < x2) & (ref_stars['ycent']-1 >= y1) & (ref_stars['ycent']-1 < y2)
+        ref_stars_in = ref_stars[mask_in]
+        plt.scatter(ref_stars_in['xcent']-1, ref_stars_in['ycent']-1, s=s_ref, edgecolor='green', facecolor='none', 
+                    marker='o', label='Ref stars', zorder=9)
+        for i, row in ref_stars_in.iterrows():
+            plt.text(row['xcent']-1+3, row['ycent']-1+3, f"{int(row['obj_id'])}", 
+                     color='green', fontsize=8)
+    plt.title(os.path.basename(fitnm), fontsize=10)
+    plt.xlabel('X [pix]')
+    plt.ylabel('Y [pix]')
     plt.tight_layout()
-    outpng = os.path.join(outdir, os.path.splitext(os.path.basename(fitnm))[0] + '_grb_match_zoom.png')
+    outpng = os.path.join(outdir, os.path.splitext(os.path.basename(fitnm))[0] + '_grb_match.png')
     plt.savefig(outpng, dpi=120)
     plt.close()
+
 
 def main():
     start_time = time.time()
@@ -159,8 +181,6 @@ def main():
         df_bright = df[(df['flux'] >= flux_thresh)]
         df_near = df_bright[df_bright['dist_pix'] < search_radius]
         ref_stars = df_near.nsmallest(20, 'dist_pix')
-        # 绘图标注
-        plot_grb_and_refs(imgs[k], grb_x, grb_y, ref_stars)
         if len(ref_stars) < 3:
             print(f'Warning: {pos_csv} 附近亮参考星太少，直接用WCS反投影')
             results.append({'frame': imgs[k], 'xcent': grb_x, 'ycent': grb_y, 'method': 'wcs'})
@@ -172,6 +192,8 @@ def main():
         tform.estimate(src, dst)
         # 用仿射变换推算GRB理论天球坐标对应的像素坐标
         grb_xy = tform([[obj_ra, obj_dec]])[0]
+        # 绘图标注
+        plot_grb_and_refs(imgs[k], grb_xy[0], grb_xy[1], ref_stars)
         # 反算ra, dec（用当前帧的WCS）
         grb_ra, grb_dec = wcs.all_pix2world(grb_xy[0], grb_xy[1], 1)
         results.append({'frame': imgs[k], 'xcent': grb_xy[0], 'ycent': grb_xy[1], 'ra': grb_ra, 'dec': grb_dec, 'method': 'affine'})

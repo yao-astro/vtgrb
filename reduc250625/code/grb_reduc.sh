@@ -232,7 +232,7 @@ process_imastk_data() {
             echo "❌ Directory does NOT exist: $raw_imastk_path"
             continue
         fi
-        cnt=$(find "$raw_imastk_path" -maxdepth 1 -type f -name "*.fit" | tee -a "$allfit_file" | wc -l)
+        cnt=$(find "$raw_imastk_path" -maxdepth 1 -type f -name "SVT*_c_n*.fit" | tee -a "$allfit_file" | wc -l)
         if [[ $cnt -gt 0 ]]; then
             found_any=1
         fi
@@ -261,8 +261,8 @@ merge_subsolar() {
 }
 
 main() {
-    collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
-    process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
+    # collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
+    # process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
     process_imastk_data    # Step 3. 处理 IMASTK 数据
     merge_subsolar         # Step 4. 合并所有轨次lc csv并统一绘图
 }

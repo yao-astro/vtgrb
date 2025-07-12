@@ -63,6 +63,8 @@ def findstars_sep(img, pos_csvnm, nthreshold=1.5):
     bkg = sep.Background(dat)  # 背景建模
     # print(bkg.globalback)
     # print(nthreshold * bkg.globalrms)
+    sep.set_extract_pixstack(1000000)  # 增大像素栈限制，防止 internal pixel buffer full
+    sep.set_sub_object_limit(1000000)  # 增大子对象限制，防止 object deblending overflow
     objects = sep.extract(dat - bkg, nthreshold, err=bkg.globalrms, gain=gain)
     # print(objects)
     # print(type(objects))
@@ -74,7 +76,7 @@ def findstars_sep(img, pos_csvnm, nthreshold=1.5):
         df.to_csv(pos_csvnm, index=False)
         return
     df = df.rename(columns={'x': 'xcent', 'y': 'ycent'})
-    df[['xcent', 'ycent']] += 1  # 需要加 1 来修正坐标
+    df[['xcent', 'ycent']] += 1  # 加 1 修正坐标（加了 1 之后，xcent 和 ycent 就是 FITS 原像素坐标，坐标从 1 开始）
     df = del_boundstars(header, df)  # 删除找到的离图像边缘太近的源
     df = df[df['flux'] > 0]  # 提取出 flux 大于 0 的星
     df = df[df['peak'] < 65000]  # 提取出 peak 没有过饱和（大于65000）的星
