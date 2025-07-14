@@ -26,6 +26,8 @@ __pycache__/
 *.npy
 *.npz
 *.html
+*.ppt
+*.pptx
 
 # Ignore output and intermediate files
 *_aphot.csv

@@ -364,23 +364,39 @@ def plot_lc_html(lc_csv, target_nm,
                 if dfb_sub.empty:
                     continue
                 t_start = pd.to_datetime(dfb_sub['t_start'])
-                t_diff = (t_start - t0).dt.total_seconds()
+                t_end = pd.to_datetime(dfb_sub['t_end']) if 't_end' in dfb_sub.columns else t_start
+                t_start_diff = (t_start - t0).dt.total_seconds()
+                t_end_diff = (t_end - t0).dt.total_seconds()
+                t_center = (t_start_diff + t_end_diff) / 2
+                right_err = t_end_diff - t_center
+                left_err = t_center - t_start_diff
+                # 若t_end缺失则误差为0
                 fy = dfb_sub[mag_nm].round(3)
                 fy_err = dfb_sub[mag_err_nm]
                 color_val = color_dict.get((band, is_single), color_map[i % len(color_map)] if is_single else color_map[i + 2 % len(color_map)])
                 size_val = markersize * 1.5 if is_single else markersize * 2.5
-                # symbol_val = 'circle' if is_single else 'diamond'
                 symbol_val = 'circle'
-                hovertemplate = "%{y:.3f} ± %{customdata:.3f}<br>Δt=%{x:.1f}s<extra></extra>"
+                # hover显示mag±err、ΔT和t_start
+                t_start_str = t_start.dt.strftime('%Y-%m-%dT%H:%M:%S')
+                custom_hover = [f"{y:.3f} ± {e:.3f}<br>ΔT={dt:.1f}s<br>{ts}" for y, e, dt, ts in zip(fy, fy_err, t_center, t_start_str)]
+                hovertemplate = "%{customdata}<extra></extra>"
                 marker_dict = dict(
                     color=color_val,  # 填充为主色
                     size=size_val,
                     symbol=symbol_val,
                     line=dict(width=1, color='black')  # 边框为黑色
-                )                
+                )
                 fig_log.add_trace(
                     go.Scatter(
-                        x=t_diff, y=fy,
+                        x=t_center, y=fy,
+                        error_x=dict(
+                            type='data',
+                            array=right_err,
+                            arrayminus=left_err,
+                            visible=True,
+                            color=color_val,
+                            thickness=elw * 2
+                        ),
                         error_y=dict(
                             type='data',
                             array=fy_err,
@@ -388,7 +404,7 @@ def plot_lc_html(lc_csv, target_nm,
                             color=color_val,  # 误差棒颜色与数据点颜色一致
                             thickness=elw * 2
                         ),
-                        customdata=fy_err,
+                        customdata=custom_hover,
                         mode='markers',
                         marker=marker_dict,
                         name=f'{band} {"single" if is_single else "stacked"}',
@@ -398,24 +414,41 @@ def plot_lc_html(lc_csv, target_nm,
                 )
                 # 画mag_limit为倒三角marker，并支持hover显示Δt和mag_limit，颜色与主点一致，加入图例
                 if mag_limit_nm in dfb_sub.columns:
-                    ncombine = dfb_sub['ncombine'].values if 'ncombine' in dfb_sub.columns else np.ones(len(dfb_sub))
-                    expt = dfb_sub['expt'].values if 'expt' in dfb_sub.columns else np.full(len(dfb_sub), 0.08)
-                    t_arr = np.array(t_diff)
                     maglim_arr = np.array(dfb_sub[mag_limit_nm])
-                    hovertext = [f"mag_limit: {mlim:.3f}<br>Δt={tt:.1f} s" for mlim, tt in zip(maglim_arr, t_arr)]
+                    # t_center, right_err, left_err 已在主点部分算好，直接用
+                    maglim_hover = [f"mag_limit: {mlim:.3f}<br>ΔT={dt:.1f}s<br>{ts}" for mlim, dt, ts in zip(maglim_arr, t_center, t_start_str)]
+                    # # --------------------------------------------------------------
+                    # **设置透明度，color_val为字符串时转为rgba**
+                    from matplotlib.colors import to_rgba
+                    def color_with_alpha(c, alpha=0.5):
+                        try:
+                            rgba = to_rgba(c, alpha)
+                            return f'rgba({int(rgba[0]*255)},{int(rgba[1]*255)},{int(rgba[2]*255)},{rgba[3]:.2f})'
+                        except:
+                            return c
+                    color_val_alpha = color_with_alpha(color_val, 0.5)
+                    # # --------------------------------------------------------------
                     fig_log.add_trace(
                         go.Scatter(
-                            x=t_arr,
+                            x=t_center,
                             y=maglim_arr,
+                            error_x=dict(
+                                type='data',
+                                array=right_err,
+                                arrayminus=left_err,
+                                visible=True,
+                                color=color_val_alpha,
+                                thickness=elw * 2
+                            ),
                             mode="markers",
                             marker=dict(
                                 symbol="triangle-down",
-                                size=18,
-                                color=color_val,
+                                size=16,
+                                color=color_val_alpha,
                                 line=dict(width=1, color='black')
                             ),
                             hoverinfo="text",
-                            hovertext=hovertext,
+                            hovertext=maglim_hover,
                             name=f"{band} mag_limit{' single' if is_single else ' stacked'}",
                             showlegend=True
                         )

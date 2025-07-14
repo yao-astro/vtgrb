@@ -204,7 +204,7 @@ def photut_aper(img, pos, r_aper, r_in, r_out):
     phot['adu_bkg_aper'] = aperture.area * bkg_median  # 孔径内的总背景计数
     phot['adu'] = phot['aperture_sum'] - phot['adu_bkg_aper']  # 孔径内扣除背景的计数
     phot['sn'] = photut_sn(phot['adu'], aperture.area, bkg_median, bkg_nsky, 
-                           expt, dn=0, gain=gain, rdn=rdn)
+                           expt, dn=0, gain=gain, rdn=rdn, ncombine=ncomb)
     phot['adu_err'] = phot['adu'] / phot['sn']  # 根据信噪比计算计数误差
     phot['mag'] = f2mag_vt(phot['adu'], gain, expt, band, mag0)  # 将计数转换为星等
     phot['mag_err'] = 2.5 / (np.log(10) * phot['sn'])  # 根据信噪比计算星等误差

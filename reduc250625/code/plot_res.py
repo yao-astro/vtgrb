@@ -41,12 +41,17 @@ def cal_xloglim(fx, nlim0=1.5, nlim1=1.5):
     return fx_lim
 
 
-def cal_ylim(fy, fy_err, nlim0=0.1, nlim1=0.1):
+def cal_ylim(fy, fy_err, arrowlen=0.33, nlim0=0.5, nlim1=0.5):
     '''
     计算合理的 ylim，自动跳过 NaN
     '''
-    fy = np.asarray(fy)
-    fy_err = np.asarray(fy_err)
+    # 若fy_err有'mag_limit'字符串，则替换为arrowlen
+    fy = np.asarray(fy, dtype='float64')
+    fy_err_arr = np.array(fy_err)
+    if fy_err_arr.dtype.kind in {'U', 'S', 'O'}:
+        # 字符串型，替换'mag_limit'为arrowlen，其余转float
+        fy_err_arr = np.array([arrowlen if (str(x).strip().lower() == 'mag_limit') else x for x in fy_err_arr])
+    fy_err = np.asarray(fy_err_arr, dtype='float64')
     mask = ~np.isnan(fy) & ~np.isnan(fy_err)
     if not np.any(mask):
         return (0, 1)  # 全为NaN时返回默认范围
@@ -174,6 +179,7 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
     # plt.close()
 
     # **画时间减 t0 后 log 的图**
+    arrow_len = 0.5  # 极限星等的箭头长度
     if t0:
         fig, ax = plt.subplots(1, 1, sharex=True, figsize=(16, 10))
         for i in range(len(band_lst)):
@@ -198,9 +204,9 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
                 color_val = f'C{i}' if is_single else custom_colors[i]
                 marker_style = 'o' if is_single else 'D'
                 alpha_val = 0.4 if is_single else 0.8
-                markersize_val = markersize if is_single else markersize * 0.75
-                elw_val = elw if is_single else elw * 2
-                capsize_val = 0 if is_single else elw * 8
+                markersize_val = markersize * 0.75 if is_single else markersize * 0.75
+                elw_val = elw * 2 if is_single else elw * 2
+                capsize_val = elw * 8 if is_single else elw * 8
                 label_tag = f'{band_lst[i]}-single' if is_single else f'{band_lst[i]}-stacked'
                 zorder_val = 1 if is_single else 3
                 # **如果 yerr = 0，则只画上限值，同时画出数据点向下的箭头，其他点则正常画误差棒**
@@ -219,12 +225,10 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
                         x0 = (t_start.iloc[j] - t0).total_seconds()
                         x1 = (t_end.iloc[j] - t0).total_seconds()
                         # ax.hlines(y, x0, x1, color=color_val, linestyle='--', alpha=alpha_val, linewidth=elw_val*2, zorder=zorder_val)
-                        # arrow_len = 0.25
                         # ax.arrow(x, y, 0, arrow_len, length_includes_head=True,
                         #          head_width=16 * (x1-x0)/10, head_length=arrow_len / 3,
                         #          fc=color_val, ec=color_val, alpha=alpha_val, zorder=zorder_val)、
 
-                        arrow_len = 0.25
                         ax.annotate(
                             '', xy=(x, y + arrow_len), xytext=(x, y),
                             arrowprops=dict(
@@ -246,10 +250,13 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
             # x 轴范围自适应
             all_t0 = (pd.to_datetime(dfb['t_start']) - t0).dt.total_seconds().tolist()
             all_t1 = (pd.to_datetime(dfb['t_end']) - t0).dt.total_seconds().tolist()
-            fx_lim = cal_xloglim(np.array(all_t0 + all_t1))
-            ax.set_xlim(fx_lim[0], fx_lim[1])
-            fy_lim = cal_ylim(fy, fy_err, nlim0=0.5, nlim1=0.8)
-            ax.set_ylim(fy_lim[0], fy_lim[1])
+        
+        # **设置 x 轴和 y 轴范围**
+        fx_lim = cal_xloglim(np.array(all_t0 + all_t1))
+        ax.set_xlim(fx_lim[0], fx_lim[1])
+        fy_lim = cal_ylim(df['mag'], df['mag_err'], nlim0=0.1, nlim1=0.1)
+        ax.set_ylim(fy_lim[0], fy_lim[1])
+
         ax.set_ylabel('Mag')
         ax.invert_yaxis()
         ax.set_xscale('log')
@@ -277,8 +284,19 @@ def plot_lc(lc_csvnm, target_nm, t0=None):
 
 
 def main():
-    t0 = pd.to_datetime('2024-11-13T11:23:05')
-    plot_lc('GRB241113B_VT.csv', 'GRB241113B', t0=t0)
+    # **读取参数配置文件**
+    config_filenm = sys.argv[1]
+    with open(config_filenm, 'r') as f:
+        config = yaml.safe_load(f)
+    # target_ra, target_dec = config['target_radec']  # 读取目标天球坐标 (RA, Dec)
+    target_nm = config['target_nm']  # 目标名称
+    raper_chos = config['raper_chos']
+    r_cho, r_in, r_out, r_step, r_all = raper_chos
+    # print(r_cho, r_in, r_out, r_step, r_all)
+    t0 = pd.to_datetime(config['t0'])
+    # print(t0)
+
+    plot_lc(f'{target_nm}_VT.csv', target_nm, t0=t0)
 
 if __name__ == '__main__':
     start_time = time.time()

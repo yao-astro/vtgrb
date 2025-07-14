@@ -99,7 +99,8 @@ def main():
                     exptime_val = float(exptime)
                 except Exception:
                     stab_cnt_val = exptime_val = None
-                if stab_cnt_val is None or exptime_val is None or exptime_val == 0 or (stab_cnt_val / exptime_val) < 0.5:
+                # if stab_cnt_val is None or exptime_val is None or exptime_val == 0 or (stab_cnt_val / exptime_val) < 0.5:
+                if stab_cnt_val is None or exptime_val is None or exptime_val == 0 or (stab_cnt_val / exptime_val) <= 0:
                     err_lst.append(imgs[k])
                     continue
             # GRB必须要有WCS信息
