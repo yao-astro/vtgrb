@@ -268,15 +268,18 @@ merge_subsolar() {
     echo "==== Collect all Light Curves & Plot ===="
     # **收集整理每一轨的光变曲线**
     python "${code_path}/collect_allsub.py" "$config_file" "$update_list" "$proc_path" || return 1
-
     # **绘制所有光变曲线**
     python "${code_path}/collect_lcplot.py" "$config_file" "$r_aper" || return 1
+
+    # **整理结果并绘图**
+    python "${code_path}/get_res.py" "$config_file" || return 1
+    python "${code_path}/plot_res.py" "$config_file" || return 1
 }
 
 main() {
     # collect_orbit_to_date  # Step 1. 收集所有 SUBSOLAR 的最早 DATE-OBS
     # process_each_orbit     # Step 2. 按轨次建立目录并处理对应的 FIT 文件
-    process_imastk_data    # Step 3. 处理 IMASTK 数据
+    # process_imastk_data    # Step 3. 处理 IMASTK 数据
     merge_subsolar         # Step 4. 合并所有轨次lc csv并统一绘图
 }
 

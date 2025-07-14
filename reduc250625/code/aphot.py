@@ -142,9 +142,9 @@ def photut_aper(img, pos, r_aper, r_in, r_out):
     t_start, t_end = get_fittime.get_time(img)  # 获取观测起止时间
     gain = float(header['GAIN'])
     if 'NCOMBINE' in header:
-        ncomb = float(header['NCOMBINE'])
+        ncomb = int(header['NCOMBINE'])
     else:
-        ncomb = 1
+        ncomb = int(1)
     rdn = float(header['RON'])  # 读出噪声
     expt = float(header['EXPOSURE'])  # 实际有效曝光时间
     # # 计算观测的中间时刻 t_obs 以及时间误差 t_obs_err

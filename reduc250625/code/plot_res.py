@@ -296,10 +296,19 @@ def main():
     t0 = pd.to_datetime(config['t0'])
     # print(t0)
 
-    plot_lc(f'{target_nm}_VT.csv', target_nm, t0=t0)
+    out_dir = 'res'
+    res_csv = os.path.join(out_dir, f"{target_nm}_VTtest.csv")
+
+    plot_lc(res_csv, target_nm, t0=t0)
 
 if __name__ == '__main__':
     start_time = time.time()
+    
     main()
+
+    # Cal Time
     end_time = time.time()
-    print(f"Total time taken: {end_time - start_time:.2f} seconds")
+    run_time = end_time - start_time
+    current_file = os.path.basename(__file__)
+    print(f'Run Time of [{current_file}]: {run_time:.2f} s')
+
