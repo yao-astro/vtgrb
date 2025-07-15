@@ -1,0 +1,65 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# VS Code settings
+.vscode/
+
+# Data and result files
+*.csv
+*.parquet
+*.lst
+*.png
+*.pdf
+*.fits
+*.fit
+*.log
+*.bak
+*.tmp
+*.npy
+*.npz
+*.html
+*.ppt
+*.pptx
+
+# Ignore output and intermediate files
+*_aphot.csv
+*_aphot.parquet
+grb_aphot.csv
+grb_xyposs.csv
+grb_aphot_magc.csv
+err*.lst
+suc.lst
+
+# Ignore DS9 region and image files
+*.reg
+*.ds9
+
+# # Ignore YAML/JSON config backups
+# *.yaml~
+# *.json~
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Ignore user scripts and temp
+*.swp
+*.swo
+*.tmp
+
+# Ignore machine learning models
+*.joblib
+*.pkl
+
+# Ignore test outputs
+*_ml.csv
+*_ml.parquet
+*_pos2.csv

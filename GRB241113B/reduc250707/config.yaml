@@ -1,0 +1,9 @@
+# 孔径测光参数
+target_nm: GRB241113B  # 目标源名称
+raper_chos: [1.5, 10, 15, 0.5, 10]  # [测光孔径半径，背景环内半径，背景环外半径，半径步长，全孔径半径]
+data_path: 
+  - /home/vxpp/program/data/L2/imacal_vt/GRB_241113B/2024-11-13
+  - /home/vxpp/program/data/L2/imacal_vt/GRB_241113B/2024-11-16
+imastk_path: 
+  - /home/vxpp/program/data/L2/imastk_vt/GRB_241113B  # IMASTK 数据路径
+t0: 2024-11-13T11:23:05  # T0
