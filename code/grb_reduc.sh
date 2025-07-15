@@ -3,9 +3,10 @@
 start_time=$(date +%s)  # 开始时间
 
 code_path=$(cd "$(dirname "$0")"; pwd)  # 脚本所在目录
-reduc_path=`dirname ${code_path}`  # 脚本目录的上一级为数据处理总目录
+# reduc_path=`dirname ${code_path}`  # 脚本目录的上一级为数据处理总目录
+reduc_path=$(pwd)  # 当前目录作为数据处理总目录
 # **读取配置文件**
-config_file="${code_path}/config.yaml"
+config_file="${reduc_path}/config.yaml"
 if [[ ! -f "$config_file" ]]; then  # 检查配置文件是否存在
     echo "Config File [${config_file}] is Not Exist!"
     exit 1

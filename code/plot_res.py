@@ -297,7 +297,7 @@ def main():
     # print(t0)
 
     out_dir = 'res'
-    res_csv = os.path.join(out_dir, f"{target_nm}_VTtest.csv")
+    res_csv = os.path.join(out_dir, f"{target_nm}_VT.csv")
 
     plot_lc(res_csv, target_nm, t0=t0)
 
