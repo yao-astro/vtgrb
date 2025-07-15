@@ -1,0 +1,11 @@
+# 孔径测光参数
+target_nm: GRB250205A  # 目标源名称
+raper_chos: [1.5, 10, 15, 0.5, 10]  # [测光孔径半径，背景环内半径，背景环外半径，半径步长，全孔径半径]
+data_path: 
+  - /home/vxpp/program/data/L2/imacal_vt/GRB_250205A/2025-02-06
+  - /home/vxpp/program/data/L2/imacal_vt/sb25020504/2025-02-05
+  - /home/vxpp/program/data/L2/imacal_vt/sb25020504/2025-02-06  # 数据路径
+imastk_path: 
+  - /home/vxpp/program/data/L2/imastk_vt/GRB_250205A  # IMASTK 数据路径
+  - /home/vxpp/program/data/L2/imastk_vt/sb25020504  # IMASTK 数据路径
+t0: 2025-02-05T21:24:38  # T0
