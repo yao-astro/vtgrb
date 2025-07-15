@@ -43,8 +43,8 @@ suc.lst
 *.ds9
 
 # # Ignore YAML/JSON config backups
-*.yaml~
-*.json~
+*.yaml
+*.json
 
 # System files
 .DS_Store
